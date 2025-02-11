@@ -13,6 +13,8 @@
 # testing
 /coverage
 
+/public/gifts
+
 # next.js
 /.next/
 /out/
