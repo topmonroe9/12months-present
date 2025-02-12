@@ -1,6 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   images: {
+    unoptimized: true,
+    basePath: "/12months-present",
+    assetPrefix: "/12months-present/",
     remotePatterns: [
       {
         protocol: "https",
@@ -9,6 +12,7 @@ const nextConfig = {
       },
     ],
   },
+  output: "export",
   // Add any other Next.js config options you need
 };
 
