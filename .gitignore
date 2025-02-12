@@ -42,3 +42,4 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 src/content/gifts/gift1.js
+src/data/localContent.js
