@@ -27,7 +27,7 @@ jobs:
 
       - name: Build project
         env:
-          NEXT_PUBLIC_API_URL: "http://35.157.250.161:4001"
+          NEXT_PUBLIC_API_URL: "https://clx4cvh0td.execute-api.eu-central-1.amazonaws.com"
         run: npm run build
 
       - name: Upload artifact
