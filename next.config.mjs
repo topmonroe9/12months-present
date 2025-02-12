@@ -1,9 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: "export",
   images: {
     unoptimized: true,
-    basePath: "/12months-present",
-    assetPrefix: "/12months-present/",
     remotePatterns: [
       {
         protocol: "https",
@@ -12,8 +11,10 @@ const nextConfig = {
       },
     ],
   },
-  output: "export",
-  // Add any other Next.js config options you need
+  basePath: process.env.NODE_ENV === "production" ? "/12months-present" : "",
+  assetPrefix:
+    process.env.NODE_ENV === "production" ? "/12months-present/" : "",
+  trailingSlash: true,
 };
 
 export default nextConfig;
