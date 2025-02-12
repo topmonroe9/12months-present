@@ -24,16 +24,24 @@ export const fetchContent = async (pincode) => {
 
       if (localModule) {
         // Simulate network delay
-        await new Promise((resolve) => setTimeout(resolve, 500));
+        // await new Promise((resolve) => setTimeout(resolve, 500));
 
-        if (!localModule.validPincodes.has(pincode)) {
+        const pincodeNum = Number(pincode);
+        console.log("Checking pincode:", pincodeNum);
+
+        if (localModule.validPincode !== pincodeNum) {
+          console.log("Invalid pincode");
           return {
             success: false,
             message: "Invalid pincode",
           };
         }
 
-        return localModule.localContent;
+        console.log("Valid pincode, returning content");
+        return {
+          success: true,
+          data: localModule.localContent,
+        };
       }
     }
 

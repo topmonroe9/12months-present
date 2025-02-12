@@ -14,6 +14,7 @@ const Home = () => {
       if (savedPincode) {
         try {
           const response = await fetchContent(savedPincode);
+          console.log(response);
           if (response.success && response.data) {
             setContent(response.data);
           }

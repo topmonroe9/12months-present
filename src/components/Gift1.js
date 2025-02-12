@@ -156,6 +156,7 @@ const Gift1 = ({ content, onClose }) => {
     <MediaPreloader content={content}>
       <motion.div
         className="fixed inset-0 flex items-center justify-center z-50 select-none"
+        onContextMenu={(e) => e.preventDefault()}
         onMouseDown={handleHoldStart}
         onMouseUp={handleHoldEnd}
         onMouseLeave={handleHoldEnd}

@@ -10,7 +10,7 @@ const PincodeEntry = ({ onSuccess }) => {
     e.preventDefault();
     setError("");
     setIsLoading(true);
-
+    console.log(pincode);
     try {
       const response = await fetchContent(pincode);
 
