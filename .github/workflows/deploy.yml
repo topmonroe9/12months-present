@@ -26,6 +26,8 @@ jobs:
         run: npm ci
 
       - name: Build project
+        env:
+          NEXT_PUBLIC_API_URL: "http://35.157.250.161:4001"
         run: npm run build
 
       - name: Upload artifact
