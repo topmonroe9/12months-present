@@ -1,4 +1,3 @@
-// Gift1.js
 import React, { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -12,14 +11,15 @@ import {
   useSlideNavigation,
   useGestureHandling,
 } from "../hooks/useAudioPlayer";
+import MediaPreloader from "./MediaPreloader";
 
 const Gift1 = ({ content, onClose }) => {
   const { slides, music, totalDuration } = content;
   const [currentSlide, setCurrentSlide] = useState(0);
   const [currentTime, setCurrentTime] = useState(0);
   const [isHolding, setIsHolding] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [loadedImages, setLoadedImages] = useState(new Set());
+  const [isAudioReady, setIsAudioReady] = useState(false);
+  const [audioError, setAudioError] = useState(null);
 
   const { audioRef, handleVideoPlay, handleVideoEnd, handleTimeUpdate } =
     useAudioPlayer({
@@ -49,39 +49,59 @@ const Gift1 = ({ content, onClose }) => {
       handleSlideClick,
     });
 
+  // Initialize audio independently
   useEffect(() => {
-    if (!content) return;
+    if (!content || !music) return;
 
-    const audio = new Audio(music);
+    const audio = new Audio();
     audioRef.current = audio;
-    audio.addEventListener("canplaythrough", () => setIsLoading(false));
+
+    const handleCanPlayThrough = () => {
+      setIsAudioReady(true);
+    };
+
+    const handleAudioError = (e) => {
+      console.error("Audio loading error:", e);
+      setAudioError("Failed to load audio. Please try again.");
+    };
+
+    audio.addEventListener("canplaythrough", handleCanPlayThrough);
+    audio.addEventListener("error", handleAudioError);
+    audio.src = music;
     audio.load();
 
     return () => {
       if (audioRef.current) {
+        audioRef.current.removeEventListener(
+          "canplaythrough",
+          handleCanPlayThrough
+        );
+        audioRef.current.removeEventListener("error", handleAudioError);
         audioRef.current.pause();
         audioRef.current.currentTime = 0;
       }
     };
-  }, [music]);
+  }, [content, music]);
 
+  // Handle audio playback
   useEffect(() => {
-    if (!isLoading && audioRef.current) {
-      audioRef.current.addEventListener("timeupdate", handleTimeUpdate);
+    if (!audioRef.current || !isAudioReady) return;
 
-      const startPlayback = async () => {
-        try {
-          if (!isHolding) {
-            await audioRef.current.play();
-          }
-        } catch (error) {
-          console.error("Playback failed:", error);
+    audioRef.current.addEventListener("timeupdate", handleTimeUpdate);
+
+    const startPlayback = async () => {
+      try {
+        if (!isHolding) {
+          await audioRef.current.play();
         }
-      };
-
-      if (!isHolding) {
-        startPlayback();
+      } catch (error) {
+        console.error("Playback failed:", error);
+        setAudioError("Failed to start playback. Please try again.");
       }
+    };
+
+    if (!isHolding) {
+      startPlayback();
     }
 
     return () => {
@@ -89,7 +109,7 @@ const Gift1 = ({ content, onClose }) => {
         audioRef.current.removeEventListener("timeupdate", handleTimeUpdate);
       }
     };
-  }, [isLoading, isHolding]);
+  }, [isAudioReady, isHolding]);
 
   // Handle keyboard navigation
   useEffect(() => {
@@ -107,32 +127,6 @@ const Gift1 = ({ content, onClose }) => {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [currentSlide, slides.length]);
 
-  if (isLoading) {
-    return (
-      <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50">
-        <div className="text-white text-center">
-          <div className="mb-4">Подготавливаем твой подарок...</div>
-          <div className="w-32 h-1 bg-gray-700 rounded-full">
-            <div
-              className="h-full bg-pink-500 rounded-full transition-all duration-300"
-              style={{
-                width: `${
-                  (loadedImages.size /
-                    slides.filter(
-                      (s) =>
-                        s.type === "image" ||
-                        (s.type === "imageGrid" && s.images)
-                    ).length) *
-                  100
-                }%`,
-              }}
-            />
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   const currentSlideData = slides[currentSlide];
   const progress = calculateProgress(
     currentTime,
@@ -142,50 +136,68 @@ const Gift1 = ({ content, onClose }) => {
     currentSlide
   );
 
-  return (
-    <motion.div
-      className="fixed inset-0 flex items-center justify-center z-50 select-none"
-      onMouseDown={handleHoldStart}
-      onMouseUp={handleHoldEnd}
-      onMouseLeave={handleHoldEnd}
-      onTouchStart={(e) => {
-        handleTouchStart(e);
-        handleHoldStart();
-      }}
-      onTouchEnd={handleHoldEnd}
-      animate={{
-        background: currentSlideData?.backgroundColor || "rgba(0, 0, 0, 0.9)",
-      }}
-      transition={{ duration: 0.5, ease: "easeInOut" }}
-    >
-      <ProgressBar progress={progress} />
-
-      <NavigationControls
-        onPrevious={handlePrevious}
-        onNext={handleNext}
-        onClose={onClose}
-      />
-
-      <div className="w-full max-w-2xl p-8 relative select-none">
-        <div className="relative min-h-[70vh] flex items-center justify-center">
-          <AnimatePresence mode="wait">
-            <SlideContent
-              slide={currentSlideData}
-              currentSlide={currentSlide}
-              handleVideoPlay={handleVideoPlay}
-              handleVideoEnd={handleVideoEnd}
-              isHolding={isHolding}
-            />
-          </AnimatePresence>
+  if (audioError) {
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50">
+        <div className="text-white text-center">
+          <div className="mb-4">{audioError}</div>
+          <button
+            onClick={() => window.location.reload()}
+            className="bg-pink-500 text-white px-4 py-2 rounded hover:bg-pink-600"
+          >
+            Retry
+          </button>
         </div>
-
-        <NavigationDots
-          slides={slides}
-          currentSlide={currentSlide}
-          onSlideClick={handleSlideClick}
-        />
       </div>
-    </motion.div>
+    );
+  }
+
+  return (
+    <MediaPreloader content={content}>
+      <motion.div
+        className="fixed inset-0 flex items-center justify-center z-50 select-none"
+        onMouseDown={handleHoldStart}
+        onMouseUp={handleHoldEnd}
+        onMouseLeave={handleHoldEnd}
+        onTouchStart={(e) => {
+          handleTouchStart(e);
+          handleHoldStart();
+        }}
+        onTouchEnd={handleHoldEnd}
+        animate={{
+          background: currentSlideData?.backgroundColor || "rgba(0, 0, 0, 0.9)",
+        }}
+        transition={{ duration: 0.5, ease: "easeInOut" }}
+      >
+        <ProgressBar progress={progress} />
+
+        <NavigationControls
+          onPrevious={handlePrevious}
+          onNext={handleNext}
+          onClose={onClose}
+        />
+
+        <div className="w-full max-w-2xl p-8 relative select-none">
+          <div className="relative min-h-[70vh] flex items-center justify-center">
+            <AnimatePresence mode="wait">
+              <SlideContent
+                slide={currentSlideData}
+                currentSlide={currentSlide}
+                handleVideoPlay={handleVideoPlay}
+                handleVideoEnd={handleVideoEnd}
+                isHolding={isHolding}
+              />
+            </AnimatePresence>
+          </div>
+
+          <NavigationDots
+            slides={slides}
+            currentSlide={currentSlide}
+            onSlideClick={handleSlideClick}
+          />
+        </div>
+      </motion.div>
+    </MediaPreloader>
   );
 };
 

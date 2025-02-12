@@ -15,13 +15,15 @@ const useAudioPlayer = ({
 
   const handleVideoPlay = () => {
     if (audioRef.current) {
-      audioRef.current.volume = 0;
+      // Mute the background music but don't pause it
+      audioRef.current.muted = true;
     }
   };
 
   const handleVideoEnd = () => {
     if (audioRef.current) {
-      audioRef.current.volume = 1;
+      // Unmute the background music
+      audioRef.current.muted = false;
     }
   };
 
@@ -31,13 +33,11 @@ const useAudioPlayer = ({
     const time = audioRef.current.currentTime;
     setCurrentTime(time);
 
-    // Check if we've reached the end of the presentation
     if (time >= totalDuration) {
       onClose({ stopPropagation: () => {} });
       return;
     }
 
-    // Find current slide based on time
     const slideIndex = slides.findIndex(
       (slide, index) =>
         time >= slide.startTime &&

@@ -4,6 +4,8 @@ import { motion } from "framer-motion";
 import Image from "next/image";
 import SparklingText from "./SparklingText";
 import VideoWithSound from "./VideoWithSound";
+import CachedImage from "./CachedImage";
+import CachedVideo from "./CachedVideo";
 
 const slideAnimation = {
   initial: { opacity: 0, y: 20 },
@@ -43,15 +45,45 @@ export const ImageSlide = ({
   captionClassName,
 }) => (
   <motion.div {...slideAnimation} className="relative">
-    <Image
-      src={src}
-      alt={alt || "Slide image"}
-      width={800}
-      height={600}
-      className={className}
-      priority={true}
-    />
+    <CachedImage src={src} alt={alt || "Slide image"} className={className} />
     {caption && <p className={captionClassName}>{caption}</p>}
+  </motion.div>
+);
+
+// Update VideoWithSoundSlide
+export const VideoWithSoundSlide = ({
+  src,
+  className,
+  videoClassName,
+  content,
+  contentClassName,
+  loop,
+  onPlay,
+  onEnded,
+  isPaused,
+}) => (
+  <motion.div {...slideAnimation} className="flex flex-col gap-4">
+    <div className={className}>
+      <CachedVideo
+        src={src}
+        className={videoClassName}
+        loop={loop !== false}
+        onPlay={onPlay}
+        onEnded={onEnded}
+        isPaused={isPaused}
+        isWithSound={true}
+        autoPlay={true}
+        muted={false}
+        playsInline={true}
+        controls={false}
+      />
+    </div>
+    {content && (
+      <SparklingText
+        content={content}
+        className={`text-center mt-4 ${contentClassName || ""}`}
+      />
+    )}
   </motion.div>
 );
 
@@ -66,50 +98,20 @@ export const VideoGridSlide = ({
     <div className={className}>
       {videos.map((video, index) => (
         <div key={index} className="relative">
-          <video
+          <CachedVideo
             src={video.src}
             className={videoClassName}
             autoPlay
             loop
-            muted={true}
+            muted
             playsInline
+            isWithSound={false} // Regular muted video
           />
           {video.caption && (
             <p className={video.captionClassName}>{video.caption}</p>
           )}
         </div>
       ))}
-    </div>
-    {content && (
-      <SparklingText
-        content={content}
-        className={`text-center mt-4 ${contentClassName || ""}`}
-      />
-    )}
-  </motion.div>
-);
-
-export const VideoWithSoundSlide = ({
-  src,
-  className,
-  videoClassName,
-  content,
-  contentClassName,
-  loop,
-  onPlay,
-  onEnded,
-  isPaused,
-}) => (
-  <motion.div {...slideAnimation} className="flex flex-col gap-4">
-    <div className={className}>
-      <VideoWithSound
-        src={src}
-        className={videoClassName}
-        loop={loop !== false}
-        onPlay={onPlay}
-        onEnded={onEnded}
-        isPaused={isPaused}
-      />
     </div>
     {content && (
       <SparklingText
@@ -132,13 +134,10 @@ export const ImageGridSlide = ({
     <div className={className}>
       {images.map((image, index) => (
         <div key={index} className="relative">
-          <Image
+          <CachedImage
             src={image.src}
             alt={image.alt || `Grid image ${index + 1}`}
-            width={400}
-            height={300}
             className={imageClassName}
-            priority={true}
           />
           {image.caption && <p className={captionClassName}>{image.caption}</p>}
         </div>
