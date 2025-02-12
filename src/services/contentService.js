@@ -2,38 +2,42 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 const isDevelopment = process.env.NODE_ENV === "development";
 
-let localContent;
-let validPincodes;
+// Safely try to get local content
+const getLocalContent = async () => {
+  if (!isDevelopment) return null;
 
-// Only import in development
-if (isDevelopment) {
-  import("../data/localContent").then((module) => {
-    localContent = module.localContent;
-    validPincodes = module.validPincodes;
-  });
-}
+  try {
+    // eslint-disable-next-line @next/next/no-assign-module-variable
+    const module = await import("@/data/localContent.js");
+    return module;
+  } catch (error) {
+    console.warn("Local content file not found, using API instead");
+    return null;
+  }
+};
 
 export const fetchContent = async (pincode) => {
   try {
-    // Use local data in development mode
+    // Try to use local data in development mode
     if (isDevelopment) {
-      // Simulate network delay
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      const localModule = await getLocalContent();
 
-      if (!validPincodes.has(pincode)) {
-        return {
-          success: false,
-          message: "Invalid pincode",
-        };
+      if (localModule) {
+        // Simulate network delay
+        await new Promise((resolve) => setTimeout(resolve, 500));
+
+        if (!localModule.validPincodes.has(pincode)) {
+          return {
+            success: false,
+            message: "Invalid pincode",
+          };
+        }
+
+        return localModule.localContent;
       }
-
-      return {
-        success: true,
-        data: localContent,
-      };
     }
 
-    // Use API in production
+    // Fallback to API if local content is not available or in production
     const response = await fetch(`${API_URL}/api/content`, {
       method: "POST",
       headers: {
