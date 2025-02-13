@@ -58,7 +58,7 @@ const GiftCalendar = () => {
   useEffect(() => {
     if (!content) return;
 
-    backgroundMusicRef.current = new Audio("/background-music.mp3");
+    backgroundMusicRef.current = new Audio(content.backgroundMusic); // Update this line
     backgroundMusicRef.current.loop = true;
 
     const saved = localStorage.getItem("giftCalendarState");
