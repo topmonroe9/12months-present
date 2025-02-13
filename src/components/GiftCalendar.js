@@ -1,4 +1,3 @@
-// GiftCalendar.js
 "use client";
 import React, { useState, useEffect, useRef } from "react";
 import { Gift, Calendar, Clock } from "lucide-react";
@@ -97,22 +96,22 @@ const GiftCalendar = () => {
   };
 
   const openGift = (monthIndex) => {
-    console.log("Opening gift:", monthIndex); // Debug log
-    console.log("Current content:", content); // Debug log
+    console.log("Opening gift:", monthIndex);
+    console.log("Current content:", content);
 
     // If the gift is already opened, allow replay
     if (openedGifts.includes(monthIndex)) {
       setSelectedGift(monthIndex);
       if (backgroundMusicRef.current) {
-        backgroundMusicRef.current.pause();
-        setIsBackgroundMusicPlaying(false);
+        backgroundMusicRef.current.muted = true;
+        // Don't update isBackgroundMusicPlaying since we're just muting, not stopping
       }
       return;
     }
 
     // For new gifts, check availability
     if (!isGiftAvailable(monthIndex)) {
-      console.log("Gift not available yet"); // Debug log
+      console.log("Gift not available yet");
       return;
     }
 
@@ -133,17 +132,20 @@ const GiftCalendar = () => {
     }
 
     if (backgroundMusicRef.current) {
-      backgroundMusicRef.current.pause();
-      setIsBackgroundMusicPlaying(false);
+      backgroundMusicRef.current.muted = true;
+      // Don't update isBackgroundMusicPlaying since we're just muting, not stopping
     }
   };
 
   const handleGiftClose = () => {
     setSelectedGift(null);
-    if (isBackgroundMusicPlaying && backgroundMusicRef.current) {
-      backgroundMusicRef.current.play().catch((error) => {
-        console.error("Error resuming background music:", error);
-      });
+    if (backgroundMusicRef.current) {
+      backgroundMusicRef.current.muted = false;
+      if (isBackgroundMusicPlaying) {
+        backgroundMusicRef.current.play().catch((error) => {
+          console.error("Error resuming background music:", error);
+        });
+      }
     }
   };
 

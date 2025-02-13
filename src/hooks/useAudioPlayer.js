@@ -1,8 +1,7 @@
-// hooks/useAudioPlayer.js
-import { useRef } from "react";
+import { useRef, useCallback } from "react";
 
 const useAudioPlayer = ({
-  music,
+  audioRef,
   totalDuration,
   currentTime,
   setCurrentTime,
@@ -10,54 +9,99 @@ const useAudioPlayer = ({
   slides,
   currentSlide,
   setCurrentSlide,
+  isHolding,
 }) => {
-  const audioRef = useRef(null);
+  const backgroundMusicRef = useRef(
+    window?.parent?.backgroundMusicRef?.current
+  );
 
   const handleVideoPlay = () => {
+    console.log("Video starting, muting audio");
     if (audioRef.current) {
-      // Mute the background music but don't pause it
       audioRef.current.muted = true;
     }
-  };
-
-  const handleVideoEnd = () => {
-    if (audioRef.current) {
-      // Unmute the background music
-      audioRef.current.muted = false;
+    if (backgroundMusicRef.current) {
+      backgroundMusicRef.current.muted = true;
     }
   };
 
-  const handleTimeUpdate = () => {
+  // Keep handleVideoEnd simple as a backup
+  const handleVideoEnd = () => {
+    if (backgroundMusicRef.current) {
+      backgroundMusicRef.current.muted = false;
+    }
+  };
+
+  const handleTimeUpdate = useCallback(() => {
     if (!audioRef.current) return;
 
-    const time = audioRef.current.currentTime;
-    setCurrentTime(time);
+    const currentAudioTime = audioRef.current.currentTime;
+    setCurrentTime(currentAudioTime);
 
-    if (time >= totalDuration) {
-      onClose({ stopPropagation: () => {} });
+    // Find which slide we should be on based on the current time
+    let targetSlideIndex = -1;
+    for (let i = 0; i < slides.length; i++) {
+      const slide = slides[i];
+      const nextSlide = slides[i + 1];
+
+      if (
+        currentAudioTime >= slide.startTime &&
+        (!nextSlide || currentAudioTime < nextSlide.startTime)
+      ) {
+        targetSlideIndex = i;
+        break;
+      }
+    }
+
+    // If we found a valid target slide and it's different from current
+    if (targetSlideIndex !== -1 && targetSlideIndex !== currentSlide) {
+      console.log(
+        `Time: ${currentAudioTime.toFixed(
+          2
+        )}, Moving from slide ${currentSlide} to ${targetSlideIndex}`
+      );
+
+      // Check if we're moving away from a video slide
+      const currentSlideData = slides[currentSlide];
+      const targetSlideData = slides[targetSlideIndex];
+
+      if (
+        currentSlideData?.type === "videoWithSound" ||
+        (targetSlideData && targetSlideData.type !== "videoWithSound")
+      ) {
+        console.log(
+          "Moving away from video or to non-video slide, unmuting audio"
+        );
+        audioRef.current.muted = false;
+        if (!isHolding && audioRef.current.paused) {
+          audioRef.current.play().catch(console.error);
+        }
+      }
+
+      setCurrentSlide(targetSlideIndex);
+    }
+
+    // Handle end of presentation
+    if (currentAudioTime >= totalDuration) {
+      onClose();
       return;
     }
-
-    const slideIndex = slides.findIndex(
-      (slide, index) =>
-        time >= slide.startTime &&
-        time < (slide.endTime || slides[index + 1]?.startTime || totalDuration)
-    );
-
-    if (slideIndex !== -1 && slideIndex !== currentSlide) {
-      setCurrentSlide(slideIndex);
-    }
-  };
+  }, [
+    currentSlide,
+    slides,
+    totalDuration,
+    onClose,
+    setCurrentSlide,
+    setCurrentTime,
+  ]);
 
   return {
-    audioRef,
     handleVideoPlay,
     handleVideoEnd,
     handleTimeUpdate,
   };
 };
 
-// hooks/useSlideNavigation.js
 const useSlideNavigation = ({
   currentSlide,
   slides,
@@ -66,7 +110,18 @@ const useSlideNavigation = ({
 }) => {
   const handleSlideClick = (index) => {
     if (audioRef.current && slides[index]) {
+      // Stop current instance and reset
+      audioRef.current.pause();
+
+      // Make sure audio is unmuted when navigating manually
+      audioRef.current.muted = false;
+
+      // Set new time
       audioRef.current.currentTime = slides[index].startTime;
+
+      // Resume playback
+      audioRef.current.play().catch(console.error);
+
       setCurrentSlide(index);
     }
   };
@@ -90,7 +145,6 @@ const useSlideNavigation = ({
   };
 };
 
-// hooks/useGestureHandling.js
 const useGestureHandling = ({
   setIsHolding,
   audioRef,
@@ -114,33 +168,8 @@ const useGestureHandling = ({
     }
   };
 
-  const handleTouchStart = (e) => {
-    const touch = e.touches[0];
-    const startX = touch.clientX;
-
-    const handleTouchMove = (e) => {
-      const touch = e.touches[0];
-      const diffX = touch.clientX - startX;
-
-      if (Math.abs(diffX) > 50) {
-        // Threshold for swipe
-        if (diffX > 0 && currentSlide > 0) {
-          handleSlideClick(currentSlide - 1);
-        } else if (diffX < 0 && currentSlide < slides.length - 1) {
-          handleSlideClick(currentSlide + 1);
-        }
-        document.removeEventListener("touchmove", handleTouchMove);
-      }
-    };
-
-    document.addEventListener("touchmove", handleTouchMove);
-    document.addEventListener(
-      "touchend",
-      () => {
-        document.removeEventListener("touchmove", handleTouchMove);
-      },
-      { once: true }
-    );
+  const handleTouchStart = () => {
+    handleHoldStart();
   };
 
   return {

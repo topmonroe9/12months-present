@@ -20,18 +20,45 @@ const Gift1 = ({ content, onClose }) => {
   const [isHolding, setIsHolding] = useState(false);
   const [isAudioReady, setIsAudioReady] = useState(false);
   const [audioError, setAudioError] = useState(null);
+  const audioRef = useRef(null);
 
-  const { audioRef, handleVideoPlay, handleVideoEnd, handleTimeUpdate } =
-    useAudioPlayer({
-      music,
-      totalDuration,
-      currentTime,
-      setCurrentTime,
-      onClose,
-      slides,
-      currentSlide,
-      setCurrentSlide,
-    });
+  // Initialize audio once
+  useEffect(() => {
+    if (!content?.music || !music) return;
+
+    const audio = new Audio(music);
+    audioRef.current = audio;
+
+    const handleCanPlayThrough = () => {
+      setIsAudioReady(true);
+    };
+
+    audio.addEventListener("canplaythrough", handleCanPlayThrough);
+
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.removeEventListener(
+          "canplaythrough",
+          handleCanPlayThrough
+        );
+        audioRef.current.pause();
+        audioRef.current.src = "";
+        audioRef.current = null;
+      }
+    };
+  }, [content, music]);
+
+  const { handleVideoPlay, handleVideoEnd, handleTimeUpdate } = useAudioPlayer({
+    audioRef,
+    totalDuration,
+    currentTime,
+    setCurrentTime,
+    onClose,
+    slides,
+    currentSlide,
+    setCurrentSlide,
+    isHolding,
+  });
 
   const { handleSlideClick, handlePrevious, handleNext } = useSlideNavigation({
     currentSlide,
@@ -40,76 +67,34 @@ const Gift1 = ({ content, onClose }) => {
     setCurrentSlide,
   });
 
-  const { handleHoldStart, handleHoldEnd, handleTouchStart } =
-    useGestureHandling({
-      setIsHolding,
-      audioRef,
-      currentSlide,
-      slides,
-      handleSlideClick,
-    });
-
-  // Initialize audio independently
-  useEffect(() => {
-    if (!content || !music) return;
-
-    const audio = new Audio();
-    audioRef.current = audio;
-
-    const handleCanPlayThrough = () => {
-      setIsAudioReady(true);
-    };
-
-    const handleAudioError = (e) => {
-      console.error("Audio loading error:", e);
-      setAudioError("Failed to load audio. Please try again.");
-    };
-
-    audio.addEventListener("canplaythrough", handleCanPlayThrough);
-    audio.addEventListener("error", handleAudioError);
-    audio.src = music;
-    audio.load();
-
-    return () => {
-      if (audioRef.current) {
-        audioRef.current.removeEventListener(
-          "canplaythrough",
-          handleCanPlayThrough
-        );
-        audioRef.current.removeEventListener("error", handleAudioError);
-        audioRef.current.pause();
-        audioRef.current.currentTime = 0;
-      }
-    };
-  }, [content, music]);
+  const { handleHoldStart, handleHoldEnd } = useGestureHandling({
+    setIsHolding,
+    audioRef,
+    currentSlide,
+    slides,
+    handleSlideClick,
+  });
 
   // Handle audio playback
   useEffect(() => {
     if (!audioRef.current || !isAudioReady) return;
 
-    audioRef.current.addEventListener("timeupdate", handleTimeUpdate);
+    const audio = audioRef.current;
+    audio.addEventListener("timeupdate", handleTimeUpdate);
 
-    const startPlayback = async () => {
-      try {
-        if (!isHolding) {
-          await audioRef.current.play();
-        }
-      } catch (error) {
+    // Pause or play based on isHolding state
+    if (isHolding) {
+      audio.pause();
+    } else {
+      audio.play().catch((error) => {
         console.error("Playback failed:", error);
-        setAudioError("Failed to start playback. Please try again.");
-      }
-    };
-
-    if (!isHolding) {
-      startPlayback();
+      });
     }
 
     return () => {
-      if (audioRef.current) {
-        audioRef.current.removeEventListener("timeupdate", handleTimeUpdate);
-      }
+      audio.removeEventListener("timeupdate", handleTimeUpdate);
     };
-  }, [isAudioReady, isHolding]);
+  }, [isAudioReady, isHolding, handleTimeUpdate]);
 
   // Handle keyboard navigation
   useEffect(() => {
@@ -125,7 +110,7 @@ const Gift1 = ({ content, onClose }) => {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [currentSlide, slides.length]);
+  }, [handleNext, handlePrevious, onClose]);
 
   const currentSlideData = slides[currentSlide];
   const progress = calculateProgress(
@@ -157,14 +142,11 @@ const Gift1 = ({ content, onClose }) => {
       <motion.div
         className="fixed inset-0 flex items-center justify-center z-50 select-none"
         onContextMenu={(e) => e.preventDefault()}
-        onMouseDown={handleHoldStart}
-        onMouseUp={handleHoldEnd}
-        onMouseLeave={handleHoldEnd}
-        onTouchStart={(e) => {
-          handleTouchStart(e);
-          handleHoldStart();
-        }}
-        onTouchEnd={handleHoldEnd}
+        onMouseDown={() => setIsHolding(true)}
+        onMouseUp={() => setIsHolding(false)}
+        onMouseLeave={() => setIsHolding(false)}
+        onTouchStart={() => setIsHolding(true)}
+        onTouchEnd={() => setIsHolding(false)}
         animate={{
           background: currentSlideData?.backgroundColor || "rgba(0, 0, 0, 0.9)",
         }}

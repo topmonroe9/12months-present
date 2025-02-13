@@ -6,8 +6,10 @@ import SparklingText from "./SparklingText";
 import VideoWithSound from "./VideoWithSound";
 import CachedImage from "./CachedImage";
 import CachedVideo from "./CachedVideo";
+import HeartConfetti, { TextWithHeartsSlide } from "./HeartConfetti"; // Add this line
+import { TextWithHeartsAndPulse } from "./PulsingSparklingText";
 
-const slideAnimation = {
+export const slideAnimation = {
   initial: { opacity: 0, y: 20 },
   animate: { opacity: 1, y: 0 },
   exit: { opacity: 0, y: -20 },
@@ -90,37 +92,59 @@ export const VideoWithSoundSlide = ({
 export const VideoGridSlide = ({
   videos,
   className,
-  videoClassName,
   content,
   contentClassName,
-}) => (
-  <motion.div {...slideAnimation} className="flex flex-col gap-4">
-    <div className={className}>
-      {videos.map((video, index) => (
-        <div key={index} className="relative">
-          <CachedVideo
-            src={video.src}
-            className={videoClassName}
-            autoPlay
-            loop
-            muted
-            playsInline
-            isWithSound={false} // Regular muted video
-          />
-          {video.caption && (
-            <p className={video.captionClassName}>{video.caption}</p>
-          )}
-        </div>
-      ))}
-    </div>
-    {content && (
-      <SparklingText
-        content={content}
-        className={`text-center mt-4 ${contentClassName || ""}`}
-      />
-    )}
-  </motion.div>
-);
+}) => {
+  const isSingleVideo = videos.length === 1;
+  const isMultiVideo = videos.length > 4; // For the 28-video grid case
+
+  return (
+    <motion.div
+      {...slideAnimation}
+      className="flex flex-col gap-4 w-full h-full"
+    >
+      <div className={`${className} ${isMultiVideo ? "h-[70vh]" : ""} w-full`}>
+        {videos.map((video, index) => (
+          <div key={index} className="relative w-full h-full">
+            {isMultiVideo ? (
+              // Multi-video case (28 videos grid)
+              <div className="absolute inset-0 p-1">
+                <div className="relative w-full h-full rounded-full overflow-hidden">
+                  <CachedVideo
+                    src={video.src}
+                    className="absolute inset-0 w-full h-full object-cover"
+                    autoPlay
+                    loop
+                    muted
+                    playsInline
+                    isWithSound={false}
+                  />
+                </div>
+              </div>
+            ) : (
+              // Single video case
+              <CachedVideo
+                src={video.src}
+                className="w-full h-full object-cover"
+                autoPlay
+                loop
+                muted
+                playsInline
+                isWithSound={false}
+              />
+            )}
+          </div>
+        ))}
+      </div>
+      {content && (
+        <SparklingText
+          content={content}
+          className={`text-center mt-4 ${contentClassName || ""}`}
+        />
+      )}
+    </motion.div>
+  );
+};
 
 export const ImageGridSlide = ({
   images,
@@ -171,6 +195,8 @@ export const SlideContent = ({
   switch (slide.type) {
     case "text":
       return <TextSlide {...slideProps} />;
+    case "hearts":
+      return <TextWithHeartsAndPulse {...slideProps} />;
     case "image":
       return <ImageSlide {...slideProps} />;
     case "videoGrid":
