@@ -8,6 +8,7 @@ import CachedImage from "./CachedImage";
 import CachedVideo from "./CachedVideo";
 import HeartConfetti, { TextWithHeartsSlide } from "./HeartConfetti"; // Add this line
 import { TextWithHeartsAndPulse } from "./PulsingSparklingText";
+import OptimizedVideoGridSlide from "./OptimizedVideoGridSlide";
 
 export const slideAnimation = {
   initial: { opacity: 0, y: 20 },
@@ -199,8 +200,14 @@ export const SlideContent = ({
       return <TextWithHeartsAndPulse {...slideProps} />;
     case "image":
       return <ImageSlide {...slideProps} />;
+    // case "videoGrid":
+    //   return <VideoGridSlide {...slideProps} />;
     case "videoGrid":
-      return <VideoGridSlide {...slideProps} />;
+      return slide.videos.length > 4 ? (
+        <OptimizedVideoGridSlide {...slideProps} />
+      ) : (
+        <VideoGridSlide {...slideProps} />
+      );
     case "videoWithSound":
       return <VideoWithSoundSlide {...slideProps} />;
     case "imageGrid":
