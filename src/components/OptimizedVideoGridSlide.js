@@ -16,7 +16,11 @@ const OptimizedVideoGridSlide = ({
   // Group videos into rows and columns for better organization
   const gridLayout = useMemo(() => {
     const rows = Math.ceil(Math.sqrt(videos.length));
-    const cols = Math.ceil(videos.length / rows);
+    // const cols = Math.ceil(videos.length / rows);
+    const cols =
+      Math.ceil(videos.length / rows) >= 5
+        ? 4
+        : Math.ceil(videos.length / rows);
     return { rows, cols };
   }, [videos.length]);
 

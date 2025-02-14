@@ -155,8 +155,8 @@ export const ImageGridSlide = ({
   content,
   contentClassName,
 }) => (
-  <motion.div {...slideAnimation} className="flex flex-col gap-4">
-    <div className={className}>
+  <motion.div {...slideAnimation} className="flex flex-col h-full">
+    <div className={`flex-grow ${className}`}>
       {images.map((image, index) => (
         <div key={index} className="relative">
           <CachedImage
@@ -171,7 +171,7 @@ export const ImageGridSlide = ({
     {content && (
       <SparklingText
         content={content}
-        className={`text-center mt-4 ${contentClassName || ""}`}
+        className={`mt-2 ${contentClassName || ""}`}
       />
     )}
   </motion.div>

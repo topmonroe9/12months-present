@@ -20,7 +20,9 @@ const Gift1 = ({ content, onClose }) => {
   const [isHolding, setIsHolding] = useState(false);
   const [isAudioReady, setIsAudioReady] = useState(false);
   const [audioError, setAudioError] = useState(null);
+  const [isVisible, setIsVisible] = useState(true);
   const audioRef = useRef(null);
+  const wasPlayingRef = useRef(false);
 
   // Initialize audio once
   useEffect(() => {
@@ -47,6 +49,36 @@ const Gift1 = ({ content, onClose }) => {
       }
     };
   }, [content, music]);
+
+  // Handle page visibility changes
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      const isNowVisible = !document.hidden;
+      setIsVisible(isNowVisible);
+
+      if (!audioRef.current) return;
+
+      if (isNowVisible) {
+        // Only resume if it was playing before being hidden
+        if (wasPlayingRef.current && !isHolding) {
+          audioRef.current.play().catch(console.error);
+        }
+      } else {
+        // Store current playing state and pause
+        wasPlayingRef.current = !audioRef.current.paused;
+        audioRef.current.pause();
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    // Initial check
+    setIsVisible(!document.hidden);
+
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [isHolding]);
 
   const { handleVideoPlay, handleVideoEnd, handleTimeUpdate } = useAudioPlayer({
     audioRef,
@@ -77,7 +109,7 @@ const Gift1 = ({ content, onClose }) => {
 
   // Handle audio playback
   useEffect(() => {
-    if (!audioRef.current || !isAudioReady) return;
+    if (!audioRef.current || !isAudioReady || !isVisible) return;
 
     const audio = audioRef.current;
     audio.addEventListener("timeupdate", handleTimeUpdate);
@@ -94,7 +126,7 @@ const Gift1 = ({ content, onClose }) => {
     return () => {
       audio.removeEventListener("timeupdate", handleTimeUpdate);
     };
-  }, [isAudioReady, isHolding, handleTimeUpdate]);
+  }, [isAudioReady, isHolding, handleTimeUpdate, isVisible]);
 
   // Handle keyboard navigation
   useEffect(() => {
@@ -168,7 +200,7 @@ const Gift1 = ({ content, onClose }) => {
                 currentSlide={currentSlide}
                 handleVideoPlay={handleVideoPlay}
                 handleVideoEnd={handleVideoEnd}
-                isHolding={isHolding}
+                isHolding={isHolding || !isVisible}
               />
             </AnimatePresence>
           </div>
