@@ -28,7 +28,7 @@ jobs:
       - name: Build project
         env:
           NODE_ENV: "production"
-          NEXT_PUBLIC_API_URL: "https://functions.yandexcloud.net/d4eunp0e7q1hrha3pj24"
+          NEXT_PUBLIC_API_URL: "https://d5dfucu6fpd18j8t0jig.lievo6ut.apigw.yandexcloud.net"
         run: npm run build
 
       - name: Upload artifact
