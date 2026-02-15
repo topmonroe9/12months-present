@@ -38,6 +38,12 @@ yarn-error.log*
 # vercel
 .vercel
 
+# media files (stored in S3)
+/media/
+
+# temp
+/tmp-function/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

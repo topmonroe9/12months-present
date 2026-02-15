@@ -46,7 +46,7 @@ export const fetchContent = async (pincode) => {
     }
 
     // Fallback to API if local content is not available or in production
-    const response = await fetch(`${API_URL}/api/content`, {
+    const response = await fetch(API_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

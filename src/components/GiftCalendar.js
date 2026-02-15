@@ -1,25 +1,23 @@
 "use client";
 import React, { useState, useEffect, useRef } from "react";
+import { motion } from "framer-motion";
 import { Gift, Calendar, Clock } from "lucide-react";
 import Gift1 from "./Gift1";
 import FloatingHeart from "./FloatingHeart";
-import PincodeEntry from "./PincodeEntry";
-import {
-  fetchContent,
-  getPincode,
-  savePincode,
-} from "../services/contentService";
+import Gift2Transition from "./Gift2Transition";
+import html2canvas from "html2canvas";
 
-const GiftCalendar = () => {
-  const [content, setContent] = useState(null);
+const GiftCalendar = ({ content, onTransitionComplete }) => {
   const [openedGifts, setOpenedGifts] = useState([]);
   const [timeUntilNext, setTimeUntilNext] = useState("");
   const [selectedGift, setSelectedGift] = useState(null);
-  const [isBackgroundMusicPlaying, setIsBackgroundMusicPlaying] =
-    useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isBackgroundMusicPlaying, setIsBackgroundMusicPlaying] = useState(false);
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [gift2JustUnlocked, setGift2JustUnlocked] = useState(false);
+  const [screenshotCanvas, setScreenshotCanvas] = useState(null);
 
   const backgroundMusicRef = useRef(null);
+  const calendarRef = useRef(null);
 
   const months = [
     "Февраль",
@@ -37,35 +35,16 @@ const GiftCalendar = () => {
   ];
 
   useEffect(() => {
-    const initializeContent = async () => {
-      const savedPincode = getPincode();
-      if (savedPincode) {
-        try {
-          const response = await fetchContent(savedPincode);
-          if (response.success && response.data) {
-            setContent(response.data);
-          }
-        } catch (error) {
-          console.error("Error loading content:", error);
-        }
-      }
-      setIsLoading(false);
-    };
-
-    initializeContent();
-  }, []);
-
-  useEffect(() => {
     if (!content) return;
 
-    backgroundMusicRef.current = new Audio(content.backgroundMusic); // Update this line
+    backgroundMusicRef.current = new Audio(content.backgroundMusic);
     backgroundMusicRef.current.loop = true;
 
-    const saved = localStorage.getItem("giftCalendarState");
+    const saved = localStorage.getItem("giftCalendarV2");
     if (saved) {
       try {
-        const { openedGifts: saved_gifts } = JSON.parse(saved);
-        setOpenedGifts(saved_gifts);
+        const { openedGifts: savedGifts } = JSON.parse(saved);
+        if (savedGifts) setOpenedGifts(savedGifts);
       } catch (error) {
         console.error("Error parsing saved state:", error);
       }
@@ -82,90 +61,105 @@ const GiftCalendar = () => {
     };
   }, [content]);
 
+  const isGift2Available = openedGifts.includes(0);
+
   const toggleBackgroundMusic = () => {
     if (!backgroundMusicRef.current) return;
 
     if (isBackgroundMusicPlaying) {
       backgroundMusicRef.current.pause();
     } else {
-      backgroundMusicRef.current.play().catch((error) => {
-        console.error("Error playing background music:", error);
-      });
+      backgroundMusicRef.current.play().catch(console.error);
     }
     setIsBackgroundMusicPlaying(!isBackgroundMusicPlaying);
   };
 
-  const openGift = (monthIndex) => {
-    console.log("Opening gift:", monthIndex);
-    console.log("Current content:", content);
-
-    // If the gift is already opened, allow replay
-    if (openedGifts.includes(monthIndex)) {
-      setSelectedGift(monthIndex);
-      if (backgroundMusicRef.current) {
-        backgroundMusicRef.current.muted = true;
-        // Don't update isBackgroundMusicPlaying since we're just muting, not stopping
-      }
-      return;
-    }
-
-    // For new gifts, check availability
-    if (!isGiftAvailable(monthIndex)) {
-      console.log("Gift not available yet");
-      return;
-    }
-
-    setSelectedGift(monthIndex);
-
-    // Add to opened gifts
-    const newOpenedGifts = [...openedGifts, monthIndex];
-    setOpenedGifts(newOpenedGifts);
+  const saveState = (newOpenedGifts, extra = {}) => {
     try {
+      const saved = localStorage.getItem("giftCalendarV2");
+      let state = {};
+      try {
+        state = JSON.parse(saved) || {};
+      } catch (e) {}
       localStorage.setItem(
-        "giftCalendarState",
-        JSON.stringify({
-          openedGifts: newOpenedGifts,
-        })
+        "giftCalendarV2",
+        JSON.stringify({ ...state, openedGifts: newOpenedGifts, ...extra })
       );
     } catch (error) {
       console.error("Error saving gift state:", error);
     }
+  };
+
+  const openGift = (giftIndex) => {
+    // Gift 2 — capture screenshot then start shatter transition
+    if (giftIndex === 1) {
+      if (!isGift2Available) return;
+
+      window.scrollTo({ top: 0, behavior: "instant" });
+
+      if (backgroundMusicRef.current) {
+        backgroundMusicRef.current.pause();
+      }
+
+      if (!openedGifts.includes(1)) {
+        const newOpenedGifts = [...openedGifts, 1];
+        setOpenedGifts(newOpenedGifts);
+        saveState(newOpenedGifts);
+      }
+
+      // Capture the calendar DOM, then start transition
+      if (calendarRef.current) {
+        html2canvas(calendarRef.current, {
+          scale: Math.min(window.devicePixelRatio || 1, 2),
+          logging: false,
+        })
+          .then((canvas) => {
+            setScreenshotCanvas(canvas);
+            setIsTransitioning(true);
+          })
+          .catch(() => {
+            // Fallback: transition without screenshot
+            setIsTransitioning(true);
+          });
+      } else {
+        setIsTransitioning(true);
+      }
+      return;
+    }
+
+    // Gift 1 — open slideshow
+    setSelectedGift(giftIndex);
+
+    if (!openedGifts.includes(giftIndex)) {
+      const newOpenedGifts = [...openedGifts, giftIndex];
+      setOpenedGifts(newOpenedGifts);
+      saveState(newOpenedGifts);
+    }
 
     if (backgroundMusicRef.current) {
       backgroundMusicRef.current.muted = true;
-      // Don't update isBackgroundMusicPlaying since we're just muting, not stopping
     }
   };
 
   const handleGiftClose = () => {
     setSelectedGift(null);
+
     if (backgroundMusicRef.current) {
       backgroundMusicRef.current.muted = false;
       if (isBackgroundMusicPlaying) {
-        backgroundMusicRef.current.play().catch((error) => {
-          console.error("Error resuming background music:", error);
-        });
+        backgroundMusicRef.current.play().catch(console.error);
       }
+    }
+
+    // Trigger unlock animation if gift 1 was just completed
+    if (openedGifts.includes(0) && !gift2JustUnlocked) {
+      setGift2JustUnlocked(true);
     }
   };
 
   const updateTimer = () => {
     if (!content) return;
-    const START_DATE = new Date(content.startDate);
     const now = new Date();
-
-    if (now < START_DATE) {
-      const diff = START_DATE - now;
-      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-      const hours = Math.floor(
-        (diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)
-      );
-      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-      setTimeUntilNext(`${days}д ${hours}ч ${minutes}м ${seconds}с`);
-      return;
-    }
-
     const nextDate = new Date(
       now.getFullYear(),
       now.getMonth() + (now.getDate() >= 16 ? 1 : 0),
@@ -174,119 +168,143 @@ const GiftCalendar = () => {
 
     const diff = nextDate - now;
     const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const hours = Math.floor(
+      (diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)
+    );
     const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
     const seconds = Math.floor((diff % (1000 * 60)) / 1000);
 
     setTimeUntilNext(`${days}д ${hours}ч ${minutes}м ${seconds}с`);
   };
 
-  const isGiftAvailable = (monthIndex) => {
-    if (!content) return false;
-    const START_DATE = new Date(content.startDate);
-    const now = new Date();
-
-    if (now < START_DATE) return false;
-
-    const giftDate = new Date(START_DATE);
-    giftDate.setMonth(START_DATE.getMonth() + monthIndex);
-
-    return now >= giftDate;
-  };
-
-  if (isLoading) {
-    return <div>Loading...</div>;
-  }
-
-  if (!content) {
-    return <PincodeEntry onSuccess={setContent} />;
-  }
+  if (!content) return null;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-pink-100 to-purple-100 p-4 relative overflow-hidden">
-      <button
-        onClick={toggleBackgroundMusic}
-        className="fixed top-4 right-4 z-50 bg-white rounded-full p-2 shadow-lg"
+    <>
+      {/* Gift 1 Slideshow */}
+      {selectedGift === 0 && content.gift1 && (
+        <Gift1 content={content.gift1} onClose={handleGiftClose} />
+      )}
+
+      {/* Shatter Transition */}
+      {isTransitioning && (
+        <Gift2Transition screenshotCanvas={screenshotCanvas} onComplete={onTransitionComplete} />
+      )}
+
+      {/* Original calendar UI — shrinks during transition */}
+      <motion.div
+        ref={calendarRef}
+        className="min-h-screen bg-gradient-to-b from-pink-100 to-purple-100 p-4 relative overflow-hidden"
+        animate={
+          isTransitioning
+            ? {
+                scale: 0.5,
+                borderRadius: "24px",
+                rotateX: 8,
+                rotateY: -3,
+                filter: "brightness(0.7) saturate(0.5)",
+              }
+            : {
+                scale: 1,
+                borderRadius: "0px",
+                rotateX: 0,
+                rotateY: 0,
+                filter: "brightness(1) saturate(1)",
+              }
+        }
+        transition={{ duration: 0.7, ease: [0.4, 0, 0.2, 1] }}
+        style={{ transformOrigin: "center center", perspective: 1200 }}
       >
-        {isBackgroundMusicPlaying ? "🔇" : "🔊"}
-      </button>
+        {/* Music toggle */}
+        <button
+          onClick={toggleBackgroundMusic}
+          className="fixed top-4 right-4 z-50 bg-white rounded-full p-2 shadow-lg"
+        >
+          {isBackgroundMusicPlaying ? "🔇" : "🔊"}
+        </button>
 
-      {[...Array(30)].map((_, index) => (
-        <FloatingHeart key={index} index={index} />
-      ))}
-
-      <h1 className="text-3xl font-bold text-center text-pink-600 mb-4">
-        Твои 12 историй
-      </h1>
-
-      <div className="bg-white rounded-xl p-4 shadow-lg mb-8">
-        <h2 className="text-lg font-medium text-gray-800 mb-2">
-          {new Date() < new Date(content.startDate)
-            ? "До первого подарка:"
-            : "До следующего подарка:"}
-        </h2>
-        <div className="text-2xl font-bold text-pink-600">{timeUntilNext}</div>
-      </div>
-
-      {selectedGift === 0 && content && (
-        <Gift1 content={content} onClose={handleGiftClose} />
-      )}
-
-      {selectedGift !== null && selectedGift !== 0 && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-sm animate-fade-in">
-            <h2 className="text-2xl font-bold text-pink-600 mb-4">
-              {months[selectedGift]}
-            </h2>
-            <p className="text-gray-600 mb-4">Этот подарок ещё готовится...</p>
-            <button
-              onClick={handleGiftClose}
-              className="w-full bg-pink-500 text-white rounded-lg py-2 hover:bg-pink-600 transition-colors"
-            >
-              Закрыть
-            </button>
-          </div>
-        </div>
-      )}
-
-      <div className="grid grid-cols-2 gap-4">
-        {months.map((month, index) => (
-          <div
-            key={month}
-            className={`relative bg-white rounded-xl p-4 shadow-lg transform transition-all duration-300 ${
-              openedGifts.includes(index) ? "bg-pink-50" : ""
-            }`}
-          >
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm font-medium text-gray-600">{month}</span>
-              {openedGifts.includes(index) ? (
-                <Gift className="w-5 h-5 text-pink-500" />
-              ) : (
-                <Calendar className="w-5 h-5 text-gray-400" />
-              )}
-            </div>
-
-            {!openedGifts.includes(index) && !isGiftAvailable(index) ? (
-              <div className="text-xs text-gray-500 flex items-center">
-                <Clock className="w-4 h-4 mr-1" />
-                Скоро
-              </div>
-            ) : (
-              <button
-                onClick={() => openGift(index)}
-                className={`w-full text-sm rounded-lg py-1 transition-colors ${
-                  openedGifts.includes(index)
-                    ? "bg-pink-100 text-pink-600 hover:bg-pink-200"
-                    : "bg-pink-500 text-white hover:bg-pink-600"
-                }`}
-              >
-                {openedGifts.includes(index) ? "Смотреть снова ✨" : "Открыть"}
-              </button>
-            )}
-          </div>
+        {/* Floating hearts */}
+        {[...Array(30)].map((_, index) => (
+          <FloatingHeart key={index} index={index} />
         ))}
-      </div>
-    </div>
+
+        {/* Title — same as original */}
+        <h1 className="text-3xl font-bold text-center text-pink-600 mb-4">
+          Твои 12 историй
+        </h1>
+
+        {/* Timer — same as original */}
+        <div className="bg-white rounded-xl p-4 shadow-lg mb-8">
+          <h2 className="text-lg font-medium text-gray-800 mb-2">
+            До следующего подарка:
+          </h2>
+          <div className="text-2xl font-bold text-pink-600">{timeUntilNext}</div>
+        </div>
+
+        {/* Gift grid — original 12-month layout */}
+        <div className="grid grid-cols-2 gap-4">
+          {months.map((month, index) => {
+            const isOpened = openedGifts.includes(index);
+            // Gift 1 (index 0): always available
+            // Gift 2 (index 1): available after gift 1 is watched
+            // Gifts 3-12 (index 2+): locked ("Скоро")
+            const isAvailable = index === 0 || (index === 1 && isGift2Available);
+
+            return (
+              <motion.div
+                key={month}
+                className={`relative bg-white rounded-xl p-4 shadow-lg transform transition-all duration-300 ${
+                  isOpened ? "bg-pink-50" : ""
+                }`}
+                animate={
+                  index === 1 && gift2JustUnlocked
+                    ? {
+                        boxShadow: [
+                          "0 0 0px rgba(236, 72, 153, 0)",
+                          "0 0 30px rgba(236, 72, 153, 0.5)",
+                          "0 0 15px rgba(236, 72, 153, 0.3)",
+                          "0 0 5px rgba(236, 72, 153, 0.1)",
+                        ],
+                        scale: [1, 1.05, 1],
+                      }
+                    : {}
+                }
+                transition={{ duration: 1.2, ease: "easeInOut" }}
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-gray-600">
+                    {month}
+                  </span>
+                  {isOpened ? (
+                    <Gift className="w-5 h-5 text-pink-500" />
+                  ) : (
+                    <Calendar className="w-5 h-5 text-gray-400" />
+                  )}
+                </div>
+
+                {!isAvailable && !isOpened ? (
+                  <div className="text-xs text-gray-500 flex items-center">
+                    <Clock className="w-4 h-4 mr-1" />
+                    Скоро
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => openGift(index)}
+                    className={`w-full text-sm rounded-lg py-1 transition-colors ${
+                      isOpened
+                        ? "bg-pink-100 text-pink-600 hover:bg-pink-200"
+                        : "bg-pink-500 text-white hover:bg-pink-600"
+                    }`}
+                  >
+                    {isOpened ? "Смотреть снова ✨" : "Открыть"}
+                  </button>
+                )}
+              </motion.div>
+            );
+          })}
+        </div>
+      </motion.div>
+    </>
   );
 };
 
